@@ -6,7 +6,8 @@ import (
 )
 
 type Client struct {
-    ID        string
-    Conn      net.Conn
+    ID          string
+    Conn        net.Conn
+	Port	    int
     ConnectedAt time.Time
 }

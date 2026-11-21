@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func handleConnection(conn net.Conn, manager *ClientManager) {
+func handleConnection(conn net.Conn, manager *ClientManager, pm *PortManager) {
     defer conn.Close()
 
     client := &Client{
