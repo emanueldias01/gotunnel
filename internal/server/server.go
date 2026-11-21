@@ -1,16 +1,15 @@
 package server
 
 import (
-	"fmt"
 	"log"
 	"net"
 )
 
-func InitializeServer() {
+func InitializeServer(manager *ClientManager, pm *PortManager) {
 	listener, err := net.Listen("tcp", ":3000")
 
 	if err != nil {
-		fmt.Errorf("Error in initializer tunnel server")
+		log.Fatal("Error in initializer tunnel server")
 		log.Fatal(err)
 	}
 
@@ -19,10 +18,10 @@ func InitializeServer() {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Errorf("Error in listen connection: %s", err)
+			log.Fatalf("Error in listen connection: %s", err)
 			continue
 		}
 
-		go handleConnection(conn)
+		go handleConnection(conn, manager, pm)
 	}
 }
