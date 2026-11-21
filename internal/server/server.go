@@ -6,7 +6,7 @@ import (
 	"net"
 )
 
-func InitializeServer() {
+func InitializeServer(manager *ClientManager) {
 	listener, err := net.Listen("tcp", ":3000")
 
 	if err != nil {
@@ -23,6 +23,6 @@ func InitializeServer() {
 			continue
 		}
 
-		go handleConnection(conn)
+		go handleConnection(conn, manager)
 	}
 }
