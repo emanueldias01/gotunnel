@@ -6,7 +6,7 @@ import (
 	"net"
 )
 
-func HandleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
     log.Printf("Client connected: %s\n", conn.RemoteAddr())

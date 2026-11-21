@@ -7,14 +7,14 @@ import (
 )
 
 func InitializeServer() {
-	listener, err := net.Listen("tcp", ":7000")
+	listener, err := net.Listen("tcp", ":3000")
 
 	if err != nil {
 		fmt.Errorf("Error in initializer tunnel server")
 		log.Fatal(err)
 	}
 
-	log.Println("Server start in 7000 port")
+	log.Println("Server start in 3000 port")
 	defer listener.Close()
 	for {
 		conn, err := listener.Accept()
@@ -23,6 +23,6 @@ func InitializeServer() {
 			continue
 		}
 
-		go HandleConnection(conn)
+		go handleConnection(conn)
 	}
 }
