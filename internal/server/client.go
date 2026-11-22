@@ -10,4 +10,5 @@ type Client struct {
     Conn        net.Conn
 	Port	    int
     ConnectedAt time.Time
+    Listener net.Listener
 }
