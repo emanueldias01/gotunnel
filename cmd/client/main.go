@@ -2,30 +2,57 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"os"
 )
 
 func main() {
-	conn, err := net.Dial("tcp", "localhost:3000")
+	if len(os.Args) < 2 {
+		log.Fatal("Usage: go run main.go <local-port>")
+	}
+
+	port := os.Args[1]
+
+	tunnelConn, err := net.Dial("tcp", "localhost:3000")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Tunnel connection error:", err)
 	}
-	defer conn.Close()
+	defer tunnelConn.Close()
 
-	log.Println("Conectado ao servidor!")
-
+	log.Println("Connected to GoTunnel server!")
 	buffer := make([]byte, 1024)
+	tunnelConn.Read(buffer)
 
-	for {
-		n, err := conn.Read(buffer)
-		if err != nil {
-			log.Println("Conexão encerrada:", err)
-			break
-		}
+	fmt.Printf("%s\n", string(buffer))
 
-		if n > 0 {
-			fmt.Printf("Recebido: %s\n", string(buffer[:n]))
-		}
+	localConn, err := net.Dial("tcp", "localhost:"+port)
+	if err != nil {
+		log.Fatal("Local application connection error:", err)
 	}
+	defer localConn.Close()
+
+	log.Printf("Forwarding traffic to localhost:%s\n", port)
+
+	proxy(tunnelConn, localConn)
+}
+
+func proxy(a, b net.Conn) {
+	done := make(chan struct{}, 2)
+
+	go func() {
+		io.Copy(b, a)
+		done <- struct{}{}
+	}()
+
+	go func() {
+		io.Copy(a, b)
+		done <- struct{}{}
+	}()
+
+	<-done
+
+	a.Close()
+	b.Close()
 }

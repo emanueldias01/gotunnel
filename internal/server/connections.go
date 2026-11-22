@@ -1,7 +1,6 @@
 package server
 
 import (
-	"io"
 	"log"
 	"net"
 	"strconv"
@@ -34,25 +33,10 @@ func handleConnectionToServer(conn net.Conn, manager *ClientManager, pm *PortMan
     conn.Write([]byte("Open port " + strPort))
 
     go handleClientListener(client)
-    buffer := make([]byte, 1024)
-
-    for {
-        n, err := conn.Read(buffer)
-
-        if err != nil {
-            if err != io.EOF {
-                log.Printf("Error reading client connection: %s\n", err)
-            }
-            return
-        }
-
-        log.Printf("Received from client %s: %s\n", client.ID, string(buffer[:n]))
-    }
+    monitorClientConnection(client)
 }
 
 func handleClientListener(c *Client) {
-    go monitorClientConnection(c)
-
     for {
         conn, err := c.Listener.Accept()
         if err != nil {
@@ -84,15 +68,27 @@ func handleConnection(c *Client, conn net.Conn) {
 
     n, err := conn.Read(buffer)
     if err != nil {
-        log.Printf("Read error: %s\n", err)
+        log.Printf("[USER %s] Read error: %v\n", conn.RemoteAddr(), err)
         return
     }
 
-    log.Printf("RECEPT: %s\n", string(buffer[:n]))
+    log.Printf("[USER %s] RECEIVED: %s\n", conn.RemoteAddr(), string(buffer[:n]))
 
     _, err = c.Conn.Write(buffer[:n])
     if err != nil {
-        log.Printf("Write error: %s\n", err)
+        log.Printf("[TUNNEL] Write error: %v\n", err)
+        return
+    }
+
+    n, err = c.Conn.Read(buffer)
+    if err != nil {
+        log.Printf("[TUNNEL] Response read error: %v\n", err)
+        return
+    }
+
+    _, err = conn.Write(buffer[:n])
+    if err != nil {
+        log.Printf("[USER] Response write error: %v\n", err)
     }
 }
 
