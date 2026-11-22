@@ -28,7 +28,6 @@ func (pm *PortManager) Allocate() (int, net.Listener, error) {
 
     for port := pm.minPort; port <= pm.maxPort; port++ {
         if _, exists := pm.listeners[port]; exists {
-            fmt.Println(port)
             continue
         }
 

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"io"
 	"log"
 	"net"
 	"strconv"
@@ -18,6 +19,8 @@ func handleConnectionToServer(conn net.Conn, cm *ClientManager, pm *PortManager)
     port, listener, err := pm.Allocate()
     if err != nil {
         log.Printf("Error to alocate port from client: %s\n", err)
+        conn.Close()
+        return
     }
 
     c := &Client{
@@ -58,7 +61,9 @@ func handleConnection(c *Client, conn net.Conn) {
 
     n, err := conn.Read(buffer)
     if err != nil {
-        log.Printf("Read error: %s\n", err)
+        if err != io.EOF {
+            log.Printf("Read error from %s: %s", conn.RemoteAddr(), err)
+        }
         return
     }
 
