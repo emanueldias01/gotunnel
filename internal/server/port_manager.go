@@ -1,9 +1,10 @@
 package server
 
 import (
-    "fmt"
-    "net"
-    "sync"
+	"fmt"
+	"log"
+	"net"
+	"sync"
 )
 
 type PortManager struct {
@@ -27,6 +28,7 @@ func (pm *PortManager) Allocate() (int, net.Listener, error) {
 
     for port := pm.minPort; port <= pm.maxPort; port++ {
         if _, exists := pm.listeners[port]; exists {
+            fmt.Println(port)
             continue
         }
 
@@ -48,7 +50,12 @@ func (pm *PortManager) Remove(port int) {
 
     listener := pm.listeners[port]
     if listener != nil {
-        listener.Close()
+        err := listener.Close()
+        if err != nil {
+            log.Printf("Error closing listener %d: %v", port, err)
+        }
+
         delete(pm.listeners, port)
+        log.Printf("Port %d released", port)
     }
 }

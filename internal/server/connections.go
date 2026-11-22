@@ -9,13 +9,13 @@ import (
 	"github.com/google/uuid"
 )
 
-func handleConnectionToServer(conn net.Conn, manager *ClientManager, pm *PortManager) {
+func handleConnectionToServer(conn net.Conn, cm *ClientManager, pm *PortManager) {
     port, listener, err := pm.Allocate()
     if err != nil {
         log.Printf("Error to alocate port from client: %s\n", err)
     }
 
-    client := &Client{
+    c := &Client{
         ID:          uuid.NewString(),
         Conn:        conn,
         ConnectedAt: time.Now(),
@@ -23,16 +23,15 @@ func handleConnectionToServer(conn net.Conn, manager *ClientManager, pm *PortMan
         Listener: listener,
     }
 
-    manager.Add(client)
+    cm.Add(c)
+    defer disconnectClient(c, cm, pm)
+    log.Printf("Client connected: %s", c.ID)
 
-    log.Printf("Client connected: %s", client.ID)
-
-    defer disconnectClient(client, manager, pm)
-    strPort := strconv.Itoa(client.Port)
+    strPort := strconv.Itoa(c.Port)
     conn.Write([]byte("Connect to server"))
     conn.Write([]byte("Open port " + strPort))
 
-    handleClientListener(client)
+    handleClientListener(c)
 }
 
 func handleClientListener(c *Client) {
@@ -58,31 +57,27 @@ func handleConnection(c *Client, conn net.Conn) {
         return
     }
 
-    log.Printf("RECEPT: %s\n", string(buffer[:n]))
-
-    _, err = c.Conn.Write(buffer[:n])
-    if err != nil {
-        log.Printf("Write error: %s\n", err)
-    }
-
-     n, err = c.Conn.Read(buffer)
-    if err != nil {
-        log.Printf("Response read error: %s", err)
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    if _, err = c.Conn.Write(buffer[:n]); err != nil {
+        log.Printf("Client write error: %s", err)
+        c.Listener.Close()
         return
     }
 
-    _, err = conn.Write(buffer[:n])
+    n, err = c.Conn.Read(buffer)
     if err != nil {
-        log.Printf("Response write error: %s", err)
+        log.Printf("Client read error: %s", err)
+        c.Listener.Close()
         return
     }
+
+    conn.Write(buffer[:n])
 }
 
-func disconnectClient(c *Client, manager *ClientManager,pm *PortManager) {
-    manager.mu.Lock()
-    defer manager.mu.Unlock()
+func disconnectClient(c *Client, cm *ClientManager,pm *PortManager) {
     c.Conn.Close()
     c.Listener.Close()
     pm.Remove(c.Port)
-    manager.Remove(c.ID)
+    cm.Remove(c.ID)
 }  
