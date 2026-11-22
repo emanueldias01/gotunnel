@@ -1,7 +1,6 @@
 package server
 
 import (
-	"io"
 	"log"
 	"net"
 	"strconv"
@@ -25,7 +24,6 @@ func handleConnectionToServer(conn net.Conn, manager *ClientManager, pm *PortMan
     }
 
     manager.Add(client)
-    defer disconnectedClient(client, pm, manager)
 
     log.Printf("Client connected: %s", client.ID)
 
@@ -34,24 +32,12 @@ func handleConnectionToServer(conn net.Conn, manager *ClientManager, pm *PortMan
     conn.Write([]byte("Open port " + strPort))
 
     go handleClientListener(client)
-    buffer := make([]byte, 1024)
 
-    for {
-        n, err := conn.Read(buffer)
-
-        if err != nil {
-            if err != io.EOF {
-                log.Printf("Error reading client connection: %s\n", err)
-            }
-            return
-        }
-
-        log.Printf("Received from client %s: %s\n", client.ID, string(buffer[:n]))
-    }
+    print("endline")
 }
 
 func handleClientListener(c *Client) {
-    go monitorClientConnection(c)
+    //go monitorClientConnection(c)
 
     for {
         conn, err := c.Listener.Accept()
