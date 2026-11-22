@@ -37,8 +37,6 @@ func handleConnectionToServer(conn net.Conn, manager *ClientManager, pm *PortMan
 }
 
 func handleClientListener(c *Client) {
-    //go monitorClientConnection(c)
-
     for {
         conn, err := c.Listener.Accept()
         if err != nil {
@@ -47,19 +45,6 @@ func handleClientListener(c *Client) {
         }
 
         go handleConnection(c, conn)
-    }
-}
-
-func monitorClientConnection(c *Client) {
-    buffer := make([]byte, 1)
-
-    for {
-        _, err := c.Conn.Read(buffer)
-        if err != nil {
-            log.Printf("Client disconnected: %s", c.ID)
-            c.Listener.Close()
-            return
-        }
     }
 }
 
@@ -93,10 +78,3 @@ func handleConnection(c *Client, conn net.Conn) {
         return
     }
 }
-
-func disconnectedClient(c *Client, pm *PortManager, manager *ClientManager) {
-    defer c.Conn.Close()
-    c.Listener.Close()
-    manager.Remove(c.ID)
-    pm.Remove(c.Port)
-} 
