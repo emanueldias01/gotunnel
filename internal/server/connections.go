@@ -10,6 +10,11 @@ import (
 )
 
 func handleConnectionToServer(conn net.Conn, cm *ClientManager, pm *PortManager) {
+    if tcp, ok := conn.(*net.TCPConn); ok {
+        tcp.SetKeepAlive(true)
+        tcp.SetKeepAlivePeriod(30 * time.Second)
+    }
+    
     port, listener, err := pm.Allocate()
     if err != nil {
         log.Printf("Error to alocate port from client: %s\n", err)
