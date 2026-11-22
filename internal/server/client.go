@@ -1,8 +1,9 @@
 package server
 
 import (
-    "net"
-    "time"
+	"net"
+	"sync"
+	"time"
 )
 
 type Client struct {
@@ -10,5 +11,6 @@ type Client struct {
     Conn        net.Conn
 	Port	    int
     ConnectedAt time.Time
-    Listener net.Listener
+    Listener    net.Listener
+    mu          sync.Mutex
 }

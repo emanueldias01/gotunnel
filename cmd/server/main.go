@@ -3,7 +3,7 @@ package main
 import "github.com/emanueldias01/gotunnel/internal/server"
 
 func main() {
-	manager := server.NewClientManager()
+	cm := server.NewClientManager()
 	pm := server.NewPortManager(9000, 9999)
-	server.InitializeServer(manager, pm)
+	server.InitializeServer(cm, pm)
 }

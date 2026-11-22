@@ -1,9 +1,10 @@
 package server
 
 import (
-    "fmt"
-    "net"
-    "sync"
+	"fmt"
+	"log"
+	"net"
+	"sync"
 )
 
 type PortManager struct {
@@ -48,7 +49,12 @@ func (pm *PortManager) Remove(port int) {
 
     listener := pm.listeners[port]
     if listener != nil {
-        listener.Close()
+        err := listener.Close()
+        if err != nil {
+            log.Printf("Error closing listener %d: %v", port, err)
+        }
+
         delete(pm.listeners, port)
+        log.Printf("Port %d released", port)
     }
 }
