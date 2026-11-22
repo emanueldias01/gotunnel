@@ -27,13 +27,12 @@ func handleConnectionToServer(conn net.Conn, manager *ClientManager, pm *PortMan
 
     log.Printf("Client connected: %s", client.ID)
 
+    defer disconnectClient(client, manager, pm)
     strPort := strconv.Itoa(client.Port)
     conn.Write([]byte("Connect to server"))
     conn.Write([]byte("Open port " + strPort))
 
-    go handleClientListener(client)
-
-    print("endline")
+    handleClientListener(client)
 }
 
 func handleClientListener(c *Client) {
@@ -44,7 +43,7 @@ func handleClientListener(c *Client) {
             return
         }
 
-        go handleConnection(c, conn)
+       go handleConnection(c, conn)
     }
 }
 
@@ -78,3 +77,12 @@ func handleConnection(c *Client, conn net.Conn) {
         return
     }
 }
+
+func disconnectClient(c *Client, manager *ClientManager,pm *PortManager) {
+    manager.mu.Lock()
+    defer manager.mu.Unlock()
+    c.Conn.Close()
+    c.Listener.Close()
+    pm.Remove(c.Port)
+    manager.Remove(c.ID)
+}  
