@@ -41,3 +41,14 @@ func (pm *PortManager) Allocate() (int, net.Listener, error) {
 
     return 0, nil, fmt.Errorf("no available ports")
 }
+
+func (pm *PortManager) Remove(port int) {
+    pm.mu.Lock()
+    defer pm.mu.Unlock()
+
+    listener := pm.listeners[port]
+    if listener != nil {
+        listener.Close()
+        delete(pm.listeners, port)
+    }
+}

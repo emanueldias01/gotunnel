@@ -18,10 +18,10 @@ func InitializeServer(manager *ClientManager, pm *PortManager) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Fatalf("Error in listen connection: %s", err)
+			log.Printf("Error in listen connection: %s\n", err)
 			continue
 		}
 
-		go handleConnection(conn, manager, pm)
+		go handleConnectionToServer(conn, manager, pm)
 	}
 }
