@@ -1,58 +1,28 @@
 package main
 
 import (
-	"fmt"
-	"io"
 	"log"
-	"net"
 	"os"
+
+	"github.com/emanueldias01/gotunnel/internal/client"
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatal("Usage: go run main.go <local-port>")
+	if len(os.Args) != 4 {
+		log.Fatal("Usage: go run main.go <server-host> <server-port> <local-port>")
 	}
 
-	port := os.Args[1]
+	serverHost := os.Args[1]
+	serverPort := os.Args[2]
+	localPort := os.Args[3]
 
-	tunnelConn, err := net.Dial("tcp", "localhost:3000")
+	tunnelConn, err := client.ConnectServer(serverHost, serverPort)
 	if err != nil {
-		log.Fatal("Tunnel connection error:", err)
+		log.Fatal(err)
 	}
 	defer tunnelConn.Close()
 
-	log.Println("Connected to GoTunnel server!")
-	buffer := make([]byte, 1024)
-	tunnelConn.Read(buffer)
-
-	fmt.Printf("%s\n", string(buffer))
-
-	localConn, err := net.Dial("tcp", "localhost:"+port)
-	if err != nil {
-		log.Fatal("Local application connection error:", err)
+	if err := client.HandleConnection(tunnelConn, localPort); err != nil {
+		log.Fatal(err)
 	}
-	defer localConn.Close()
-
-	log.Printf("Forwarding traffic to localhost:%s\n", port)
-
-	proxy(tunnelConn, localConn)
-}
-
-func proxy(a, b net.Conn) {
-	done := make(chan struct{}, 2)
-
-	go func() {
-		io.Copy(b, a)
-		done <- struct{}{}
-	}()
-
-	go func() {
-		io.Copy(a, b)
-		done <- struct{}{}
-	}()
-
-	<-done
-
-	a.Close()
-	b.Close()
 }
