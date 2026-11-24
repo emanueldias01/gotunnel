@@ -1,59 +1,63 @@
 package client
 
 import (
-	"fmt"
-	"io"
-	"log"
-	"net"
+    "bufio"
+    "fmt"
+    "log"
+    "net"
+    "strings"
+
+    "github.com/emanueldias01/gotunnel/internal/common"
+    "github.com/hashicorp/yamux"
 )
 
-func ConnectServer(host string, port string) (net.Conn, error) {
-	tunnelAddress := net.JoinHostPort(host, port)
-	conn, err := net.Dial("tcp", tunnelAddress)
-	if err != nil {
-		return nil, fmt.Errorf("tunnel connection error: %w", err)
-	}
+func ConnectServer(host string, port string) (*yamux.Session, error) {
+    tunnelAddress := net.JoinHostPort(host, port)
+    conn, err := net.Dial("tcp", tunnelAddress)
+    if err != nil {
+        return nil, fmt.Errorf("tunnel connection error: %w", err)
+    }
 
-	log.Println("Connected to GoTunnel server!")
-	return conn, nil
+    session, err := yamux.Client(conn, nil)
+    if err != nil {
+        conn.Close()
+        return nil, fmt.Errorf("yamux session error: %w", err)
+    }
+
+    log.Println("Connected to GoTunnel server!")
+    return session, nil
 }
 
-func HandleConnection(tunnelConn net.Conn, localPort string) error {
-	buffer := make([]byte, 4096)
-	n, err := tunnelConn.Read(buffer)
-	if err != nil && err != io.EOF {
-		return fmt.Errorf("tunnel read error: %w", err)
-	}
+func HandleConnection(session *yamux.Session, localPort string) error {
+    ctrl, err := session.Accept()
+    if err != nil {
+        return fmt.Errorf("control stream error: %w", err)
+    }
+    msg, err := bufio.NewReader(ctrl).ReadString('\n')
+    if err != nil {
+        return fmt.Errorf("control read error: %w", err)
+    }
+    ctrl.Close()
+    fmt.Println(strings.TrimSpace(msg))
 
-	fmt.Printf("%s\n", string(buffer[:n]))
+    localAddress := net.JoinHostPort("localhost", localPort)
 
-	localAddress := net.JoinHostPort("localhost", localPort)
-	localConn, err := net.Dial("tcp", localAddress)
-	if err != nil {
-		return fmt.Errorf("local application connection error: %w", err)
-	}
-	defer localConn.Close()
-
-	log.Printf("Forwarding traffic to %s\n", localAddress)
-	proxy(tunnelConn, localConn)
-	return nil
+    for {
+        stream, err := session.Accept()
+        if err != nil {
+            return fmt.Errorf("tunnel closed: %w", err)
+        }
+        go handleStream(stream, localAddress)
+    }
 }
 
-func proxy(a, b net.Conn) {
-	done := make(chan struct{}, 2)
+func handleStream(stream net.Conn, localAddress string) {
+    localConn, err := net.Dial("tcp", localAddress)
+    if err != nil {
+        log.Printf("local application connection error: %v", err)
+        stream.Close()
+        return
+    }
 
-	go func() {
-		io.Copy(b, a)
-		done <- struct{}{}
-	}()
-
-	go func() {
-		io.Copy(a, b)
-		done <- struct{}{}
-	}()
-
-	<-done
-
-	a.Close()
-	b.Close()
+    common.Proxy(stream, localConn)
 }

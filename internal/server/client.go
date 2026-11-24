@@ -2,15 +2,15 @@ package server
 
 import (
 	"net"
-	"sync"
 	"time"
+
+	"github.com/hashicorp/yamux"
 )
 
 type Client struct {
     ID          string
-    Conn        net.Conn
-	Port	    int
+    Session     *yamux.Session
+    Port        int
     ConnectedAt time.Time
     Listener    net.Listener
-    mu          sync.Mutex
 }
