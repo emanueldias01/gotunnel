@@ -1,15 +1,14 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net"
-	"net/http"
 	"os"
 
 	"github.com/emanueldias01/gotunnel/internal/client"
 	"github.com/emanueldias01/gotunnel/internal/server"
+	"github.com/emanueldias01/gotunnel/internal/testapi"
 )
 
 func main() {
@@ -24,7 +23,7 @@ func main() {
 			printUsage()
 			os.Exit(1)
 		}
-		startServer()
+		runServer()
 	case "client":
 		runClient(os.Args[2:])
 	case "test":
@@ -32,7 +31,7 @@ func main() {
 			printUsage()
 			os.Exit(1)
 		}
-		startTestServer()
+		runApiTest()
 	case "help", "-h", "--help":
 		printUsage()
 	default:
@@ -54,10 +53,8 @@ Examples:
   gotunnel test`)
 }
 
-func startServer() {
-	clientManager := server.NewClientManager()
-	portManager := server.NewPortManager(9000, 9999)
-	server.InitializeServer(clientManager, portManager)
+func runServer() {
+	server.Start()
 }
 
 func runClient(args []string) {
@@ -70,25 +67,11 @@ func runClient(args []string) {
 		log.Fatalf("Invalid server address %q: %v", args[0], err)
 	}
 
-	tunnelConn, err := client.ConnectServer(serverHost, serverPort)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer tunnelConn.Close()
+	localPort := args[1]
 
-	if err := client.HandleConnection(tunnelConn, serverHost, args[1]); err != nil {
-		log.Fatal(err)
-	}
+	client.Start(serverHost, serverPort, localPort)
 }
 
-func startTestServer() {
-	http.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]string{"message": "pong"}); err != nil {
-			log.Printf("Failed to encode ping response: %v", err)
-		}
-	})
-
-	log.Println("Test API listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+func runApiTest() {
+	testapi.Start()
 }
