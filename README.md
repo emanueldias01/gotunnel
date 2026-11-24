@@ -35,12 +35,28 @@ Local application (for example, localhost:8080)
 
 ## Installation
 
-Clone the repository and download dependencies:
+Clone the repository and install the unified `gotunnel` binary:
 
 ```bash
 git clone https://github.com/emanueldias01/gotunnel.git
 cd gotunnel
-go mod download
+go install ./cmd/gotunnel
+```
+
+The installation creates the `gotunnel` executable in the directory specified by `GOBIN`. If `GOBIN` is not set, Go uses `$GOPATH/bin`.
+
+Make sure the Go binary directory is included in `PATH`:
+
+```bash
+export PATH="$(go env GOPATH)/bin:$PATH"
+```
+
+If `GOBIN` is set, replace `$(go env GOPATH)/bin` with `$(go env GOBIN)`.
+
+View all available commands:
+
+```bash
+gotunnel help
 ```
 
 ## Run the Server
@@ -48,10 +64,19 @@ go mod download
 Start the tunnel server:
 
 ```bash
-go run ./cmd/server
+gotunnel server
 ```
 
 The server listens on `0.0.0.0:3000` for client connections. It also binds each allocated public port on all interfaces.
+
+On startup, the server prints each non-loopback IPv4 address available on the machine:
+
+```text
+Server IP: 192.168.1.10
+Server started on port 3000
+```
+
+If no non-loopback IPv4 address is available, it reports `127.0.0.1`.
 
 For each connected client, the server prints a message similar to:
 
@@ -63,21 +88,22 @@ The public port range is fixed at `9000` to `9999`.
 
 ## Run the Client
 
-The client requires the tunnel server host, the tunnel server port, and the local application port:
+The client requires the tunnel server address and the local application port:
 
 ```bash
-go run ./cmd/client <server-host> <server-port> <local-port>
+gotunnel client <server-host:server-port> <local-port>
 ```
 
 For example, to expose an application running on `localhost:8080` through a server located at `tunnel.example.com`:
 
 ```bash
-go run ./cmd/client tunnel.example.com 3000 8080
+gotunnel client tunnel.example.com:3000 8080
 ```
 
-The client prints the public port assigned by the server:
+The client prints the resolved server IP and the public port assigned by the server:
 
 ```text
+Server IP: 192.168.1.10
 Open port 9123
 ```
 
@@ -92,7 +118,7 @@ tunnel.example.com:9123
 From the repository root, start the included test API:
 
 ```bash
-go run ./cmd/test
+gotunnel test
 ```
 
 The test API listens on `localhost:8080` and provides:
@@ -104,13 +130,13 @@ GET /ping
 Start the tunnel server in another terminal:
 
 ```bash
-go run ./cmd/server
+gotunnel server
 ```
 
 Start the client in a third terminal:
 
 ```bash
-go run ./cmd/client localhost 3000 8080
+gotunnel client localhost:3000 8080
 ```
 
 If the server assigns port `9000`, test the tunnel with:
@@ -129,9 +155,10 @@ The response should be:
 
 ```text
 cmd/
-  client/    Tunnel client command
-  server/    Tunnel server command
-  test/      Local HTTP API used for testing
+  gotunnel/  Unified server, client, and test command
+  client/    Standalone tunnel client command
+  server/    Standalone tunnel server command
+  test/      Standalone local HTTP API command
 internal/
   client/    Server connection and local forwarding
   common/     Bidirectional TCP proxy

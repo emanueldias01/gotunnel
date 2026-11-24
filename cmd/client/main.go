@@ -9,7 +9,7 @@ import (
 
 func main() {
 	if len(os.Args) != 4 {
-		log.Fatal("Usage: go run main.go <server-host> <server-port> <local-port>")
+		log.Fatal("Usage: client <server-host> <server-port> <local-port>")
 	}
 
 	serverHost := os.Args[1]
@@ -22,7 +22,7 @@ func main() {
 	}
 	defer tunnelConn.Close()
 
-	if err := client.HandleConnection(tunnelConn, localPort); err != nil {
+	if err := client.HandleConnection(tunnelConn, serverHost, localPort); err != nil {
 		log.Fatal(err)
 	}
 }
