@@ -1,93 +1,75 @@
 package server
 
 import (
-	"io"
+	"fmt"
 	"log"
 	"net"
-	"strconv"
 	"time"
 
+	"github.com/emanueldias01/gotunnel/internal/common"
 	"github.com/google/uuid"
+	"github.com/hashicorp/yamux"
 )
 
 func handleConnectionToServer(conn net.Conn, cm *ClientManager, pm *PortManager) {
-    if tcp, ok := conn.(*net.TCPConn); ok {
-        tcp.SetKeepAlive(true)
-        tcp.SetKeepAlivePeriod(30 * time.Second)
+    session, err := yamux.Server(conn, nil)
+    if err != nil {
+        log.Printf("yamux error: %v", err)
+        conn.Close()
+        return
     }
-    
+
     port, listener, err := pm.Allocate()
     if err != nil {
-        log.Printf("Error to alocate port from client: %s\n", err)
-        conn.Close()
+        log.Printf("Error to allocate port: %v", err)
+        session.Close()
         return
     }
 
     c := &Client{
         ID:          uuid.NewString(),
-        Conn:        conn,
+        Session:     session,
+        Port:        port,
         ConnectedAt: time.Now(),
-        Port: port,
-        Listener: listener,
+        Listener:    listener,
     }
-
     cm.Add(c)
     defer disconnectClient(c, cm, pm)
-    log.Printf("Client connected: %s", c.ID)
+    log.Printf("Client connected: %s (port %d)", c.ID, port)
 
-    strPort := strconv.Itoa(c.Port)
-    conn.Write([]byte("Connect to server"))
-    conn.Write([]byte("Open port " + strPort))
+    ctrl, err := session.Open()
+    if err != nil {
+        return
+    }
+    fmt.Fprintf(ctrl, "Open port %d\n", port)
+    ctrl.Close()
 
-    handleClientListener(c)
-}
+    go func() {
+        <-session.CloseChan()
+        listener.Close()
+    }()
 
-func handleClientListener(c *Client) {
     for {
-        conn, err := c.Listener.Accept()
+        visitor, err := listener.Accept()
         if err != nil {
-            log.Printf("Accept error: %s", err)
             return
         }
-
-       go handleConnection(c, conn)
+        go handleVisitor(c, visitor)
     }
 }
 
-func handleConnection(c *Client, conn net.Conn) {
-    defer conn.Close()
-
-    buffer := make([]byte, 1024)
-
-    n, err := conn.Read(buffer)
+func handleVisitor(c *Client, visitor net.Conn) {
+    stream, err := c.Session.Open()
     if err != nil {
-        if err != io.EOF {
-            log.Printf("Read error from %s: %s", conn.RemoteAddr(), err)
-        }
+        log.Printf("open stream error: %v", err)
+        visitor.Close()
         return
     }
-
-    c.mu.Lock()
-    defer c.mu.Unlock()
-    if _, err = c.Conn.Write(buffer[:n]); err != nil {
-        log.Printf("Client write error: %s", err)
-        c.Listener.Close()
-        return
-    }
-
-    n, err = c.Conn.Read(buffer)
-    if err != nil {
-        log.Printf("Client read error: %s", err)
-        c.Listener.Close()
-        return
-    }
-
-    conn.Write(buffer[:n])
+    common.Proxy(visitor, stream)
 }
 
-func disconnectClient(c *Client, cm *ClientManager,pm *PortManager) {
-    c.Conn.Close()
-    c.Listener.Close()
+func disconnectClient(c *Client, cm *ClientManager, pm *PortManager) {
+    c.Session.Close()
     pm.Remove(c.Port)
     cm.Remove(c.ID)
-}  
+}
